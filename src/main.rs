@@ -35,16 +35,31 @@ fn app() -> Html {
         }
     };
 
+    let delete_cat = {
+        let cat_list = cat_list.clone();
+        Callback::from(move |name: String| {
+            let interior_cat_list = cat_list.deref().clone();
+            let new_cat_list: Vec<_> = interior_cat_list
+                .into_iter()
+                .filter(|cat| cat.name != name)
+                .collect();
+            cat_list.set(new_cat_list);
+        })
+    };
+
     html! {
         <div class= {stylesheet} >
             <h1>{ "Catdex" }</h1>
             <input
-                type = "file"
-                accept = "image/*"
-                onchange = { on_change }
+                type="file"
+                accept="image/*"
+                onchange={ on_change }
             />
             <section class="cats">
-                { for cat_list.iter().map(cat) }
+                { for cat_list.iter().map(
+                        |val| cat(val, delete_cat.clone())
+                    )
+                }
             </section>
         </div>
     }
@@ -68,10 +83,40 @@ struct CatDetails {
     image: Vec<u8>,
 }
 
-fn cat(cat: &CatDetails) -> Html {
+#[derive(Properties, PartialEq)]
+struct ButtonProp {
+    text: String,
+    name: String,
+    on_click: Callback<String>
+}
+
+#[function_component(Button)]
+fn delete_button(button: &ButtonProp) -> Html {
+    let on_click = {
+        let name = button.name.clone();
+        let callback = button.on_click.clone();
+        move |_| {
+            callback.emit(name.clone())
+        }
+    };
+
+    html! {
+        <div>
+            <button onclick={on_click}>
+                { {button.text.clone() }}
+            </button>
+        </div>
+    }
+}
+
+fn cat(cat: &CatDetails, callback: Callback<String>) -> Html {
     html! {
         <article class="cat">
             <h3>{ format!("{}", cat.name )}</h3>
+            <Button text={"Delete".to_string()}
+                name={cat.name.clone()}
+                on_click= {callback}
+            />
             <img src={
                 format!("data::image;base64,{}",
                 general_purpose::STANDARD.encode(&cat.image))
